@@ -166,8 +166,21 @@
     window.addEventListener('popstate', checkUrlChange);
     urlWatch = setInterval(checkUrlChange, 400);
     document.designMode = 'on';
-    document.documentElement.style.setProperty('outline', '4px solid #FBB734', 'important');
-    document.documentElement.style.setProperty('outline-offset', '-4px', 'important');
+    showBorder();
+  };
+
+  // ponytail: fixed overlay border instead of html outline, so it stays above page's fixed/high-z-index elements
+  let borderEl = null;
+  const showBorder = () => {
+    if (borderEl) return;
+    borderEl = document.createElement('div');
+    borderEl.style.cssText =
+      'position:fixed;inset:0;border:4px solid #FBB734;pointer-events:none;z-index:2147483647;';
+    (document.body || document.documentElement).appendChild(borderEl);
+  };
+  const hideBorder = () => {
+    borderEl?.remove();
+    borderEl = null;
   };
 
   const disable = () => {
@@ -181,8 +194,7 @@
     window.removeEventListener('pagehide', onPageHide);
     window.removeEventListener('popstate', checkUrlChange);
     document.designMode = 'off';
-    document.documentElement.style.removeProperty('outline');
-    document.documentElement.style.removeProperty('outline-offset');
+    hideBorder();
     tracked = new Map();
   };
 
