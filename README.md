@@ -64,7 +64,7 @@ This extension is not (yet) on the Chrome Web Store. Install it from source:
 ## Usage
 
 1. **Click the extension icon** (or press `Cmd+Shift+E` / `Ctrl+Shift+E`).
-   The page gets a gold outline, the badge shows **ON**, and all text is now
+   The page gets a gold outline, the badge shows **REC**, and all text is now
    directly editable.
 2. **Edit the page.** Fix copy, rewrite headings, correct numbers, change
    form field values — anything. Navigating to other pages or reloading is

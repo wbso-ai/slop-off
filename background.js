@@ -170,7 +170,7 @@ chrome.action.onClicked.addListener(async (tab) => {
       [activeKey(tabId)]: true,
       [sectionsKey(tabId)]: [],
     });
-    await setBadge(tabId, 'ON', '#FBB734');
+    await setBadge(tabId, 'REC', '#DC2626');
     return;
   }
 
@@ -213,7 +213,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, info) => {
   if (!(await isActive(tabId))) return;
   try {
     await chrome.scripting.executeScript({ target: { tabId }, files: ['content.js'] });
-    await setBadge(tabId, 'ON', '#FBB734');
+    await setBadge(tabId, 'REC', '#DC2626');
   } catch (e) {
     // Landed on a page that disallows injection; edits so far are kept.
   }
