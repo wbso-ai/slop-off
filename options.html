@@ -148,9 +148,11 @@
       <label for="webhook" style="margin-top: 24px">Webhook URL (optional)</label>
       <input id="webhook" type="url" placeholder="http://localhost:8931">
       <p class="hint">
-        Reports are also POSTed here, next to the clipboard. Point it at the
-        bundled MCP bridge (<code>mcp/server.js</code>) to feed edits straight
-        into your coding agent.
+        Reports are also POSTed here, next to the clipboard, to feed edits
+        straight into your coding agent via the bundled MCP bridge
+        (<code>mcp/server.js</code>). Defaults to the bridge's address — when
+        no agent is running the POST simply fails and the clipboard is used.
+        Clear this field to disable POSTing entirely.
       </p>
 
       <div class="actions">

@@ -14,7 +14,7 @@ function flash(message) {
   setTimeout(() => (statusEl.textContent = ''), 2000);
 }
 
-chrome.storage.sync.get({ prompt: DEFAULT_PROMPT, webhookUrl: '' }, ({ prompt, webhookUrl }) => {
+chrome.storage.sync.get({ prompt: DEFAULT_PROMPT, webhookUrl: 'http://localhost:8931' }, ({ prompt, webhookUrl }) => {
   promptEl.value = prompt;
   webhookEl.value = webhookUrl;
 });

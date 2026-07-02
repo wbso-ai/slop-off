@@ -210,7 +210,7 @@ chrome.action.onClicked.addListener(async (tab) => {
 // POST the report to the configured webhook (e.g. the MCP bridge).
 // Returns null when no webhook is configured, else whether it succeeded.
 async function postWebhook(report, count, sections) {
-  const { webhookUrl } = await chrome.storage.sync.get({ webhookUrl: '' });
+  const { webhookUrl } = await chrome.storage.sync.get({ webhookUrl: 'http://localhost:8931' });
   if (!webhookUrl.trim()) return null;
   try {
     const res = await fetch(webhookUrl.trim(), {
@@ -235,7 +235,9 @@ async function finalizeReport(tabId, sections, fallbackUrl) {
     sent = await postWebhook(report, count, sections);
   }
 
-  const suffix = sent === true ? ' · sent to agent' : sent === false ? ' · ⚠ webhook unreachable' : '';
+  // Only confirm on success; a failed POST (no bridge running) falls back to
+  // the clipboard silently, so it never nags users who don't run the agent.
+  const suffix = sent === true ? ' · sent to agent' : '';
   const copied = await copyInTab(
     tabId,
     report,

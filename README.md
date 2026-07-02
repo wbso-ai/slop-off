@@ -135,10 +135,10 @@ extension over HTTP and serves them to the agent as MCP tools.
 
 #### 1. Register the MCP server
 
-From the root of this repo:
+No clone needed — the bridge is published to npm and runs via `npx`:
 
 ```sh
-claude mcp add --scope user slop-off -- node "$(pwd)/mcp/server.js"
+claude mcp add --scope user slop-off -- npx -y slop-off
 ```
 
 `--scope user` makes the tools available in every project. Verify with
@@ -146,25 +146,34 @@ claude mcp add --scope user slop-off -- node "$(pwd)/mcp/server.js"
 The bridge listens on port `8931` (override with the `SLOP_OFF_PORT`
 env var — then also adjust the webhook URL below).
 
+> Prefer running from source? Point it at the checked-out script instead:
+> `claude mcp add --scope user slop-off -- node "$(pwd)/mcp/server.js"`.
+
 #### 2. Point the extension at it
 
-Extension options (right-click the icon → **Options**) →
-**Webhook URL** → `http://localhost:8931` → **Save**.
-
-From now on every report is POSTed to the bridge, next to the clipboard.
-The on-page toast confirms it: *"sent to agent"* — or *"⚠ webhook
-unreachable"* when no Claude Code session (and thus no bridge) is running.
+Nothing to do — the extension defaults its **Webhook URL** to
+`http://localhost:8931`, exactly where the bridge listens. Every report is
+POSTed there next to the clipboard, and the on-page toast confirms it:
+*"sent to agent"*. When no Claude Code session (and thus no bridge) is
+running, the POST simply fails and the report falls back to the clipboard —
+no warning, no noise. Clear the field in the options to disable POSTing, or
+change it if you overrode `SLOP_OFF_PORT`.
 
 #### 3. Install the `/apply-edits` skill
 
 The skill ships in this repo at `.claude/skills/apply-edits/SKILL.md`, so
 inside this repo the slash command works as-is. To use it from any project,
-install it user-wide:
+install it user-wide with the [`skills`](https://skills.sh) CLI:
 
 ```sh
-mkdir -p ~/.claude/skills/apply-edits
-cp .claude/skills/apply-edits/SKILL.md ~/.claude/skills/apply-edits/
+npx skills add wbso-ai/slop-off
 ```
+
+That fetches the skill straight from GitHub and installs it into
+`~/.claude/skills/` (pick **Claude Code** and the global scope when prompted;
+or non-interactively: `npx skills add wbso-ai/slop-off -g -a claude-code -y`).
+`skills` supports [70+ other agents](https://skills.sh) too — swap the
+`-a` flag for Cursor, Codex, etc.
 
 #### 4. Use it
 

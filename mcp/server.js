@@ -2,7 +2,8 @@
 // Slop Off MCP server: receives reports from the extension over HTTP
 // and serves them to a coding agent over MCP (stdio). No dependencies.
 //
-// Register with:  claude mcp add slop-off -- node /path/to/mcp/server.js
+// Register with:  claude mcp add --scope user slop-off -- npx -y slop-off
+//        or:      claude mcp add slop-off -- node /path/to/mcp/server.js
 // Extension:      set the webhook URL to http://localhost:8931 in the options.
 
 const http = require('http');
