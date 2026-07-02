@@ -19,6 +19,7 @@
   const phMode = new WeakSet();
   let carried = []; // adopted edits from an earlier visit, not (yet) re-attached to a live element
   let reapplyTimers = [];
+  let viewMode = 'new'; // 'original' | 'diff' | 'new' — what the page currently shows
   let adopting = false; // getSections roundtrip in flight; hold syncs so they can't clobber old edits
   let syncWanted = false;
   let syncTimer = null;
@@ -109,6 +110,7 @@
   // time we notice the URL changed, the elements are already disconnected —
   // this preserves the user's last edit instead of reporting a removal.
   const updateAfters = () => {
+    if (viewMode !== 'new') return; // the DOM shows a view, not the edits
     for (const [el, rec] of tracked) {
       if (el.isConnected) rec.after = htmlOf(el);
     }
@@ -117,11 +119,12 @@
   const snapshot = () => {
     const edits = carried.slice();
     for (const [el, rec] of tracked) {
-      const after = el.isConnected
-        ? htmlOf(el)
-        : rec.after != null
-          ? rec.after
-          : '(element removed)';
+      let after;
+      if (viewMode === 'new') {
+        after = el.isConnected ? htmlOf(el) : rec.after != null ? rec.after : '(element removed)';
+      } else {
+        after = rec.after != null ? rec.after : rec.before; // stored state, not the view
+      }
       if (after !== rec.before) {
         edits.push({ selector: rec.selector, before: rec.before, after });
       }
@@ -156,6 +159,8 @@
     adopting = false;
     syncWanted = false;
     currentUrl = location.href;
+    viewMode = 'new'; // fresh page shows the live state
+    if (active) document.designMode = 'on';
     tracked = new Map();
     carried = [];
     reapplyTimers.forEach(clearTimeout);
@@ -233,6 +238,10 @@
   };
 
   const onBeforeInput = (e) => {
+    if (viewMode !== 'new') {
+      e.preventDefault(); // original/diff views are read-only
+      return;
+    }
     checkUrlChange();
 
     // Form controls: the event target is the control itself.
@@ -259,6 +268,7 @@
   // Placeholder-mode fields: on blur, move the typed text into the
   // placeholder attribute so it renders as a real (gray) placeholder again.
   const onFocusOut = (e) => {
+    if (viewMode !== 'new') return;
     const el = e.target;
     if (!phMode.has(el) || !el.value) return;
     el.setAttribute('placeholder', el.value);
@@ -268,6 +278,7 @@
   };
 
   const onInput = (e) => {
+    if (viewMode !== 'new') return;
     checkUrlChange();
     if (isFormControl(e.target) && !tracked.has(e.target)) track(e.target);
     updateAfters();
@@ -291,6 +302,7 @@
   const enable = () => {
     if (active) return;
     active = true;
+    viewMode = 'new';
     document.addEventListener('beforeinput', onBeforeInput, true);
     document.addEventListener('input', onInput, true);
     document.addEventListener('focusin', onFocusIn, true);
@@ -342,6 +354,7 @@
 
 
   const onLinkClick = (e) => {
+    if (viewMode !== 'new') return; // views are a normal page: links just work
     if (e.target.closest && e.target.closest('[data-ec-ui]')) return;
     const a = e.target.closest ? e.target.closest('a') : null;
     if (!a) return;
@@ -483,6 +496,7 @@
   };
 
   const onLinkHover = (e) => {
+    if (viewMode !== 'new') return;
     if (linkUi && linkUi.contains(e.target)) {
       clearTimeout(linkHideTimer);
       return;
@@ -538,6 +552,7 @@
   };
 
   const onControlAltClick = (e) => {
+    if (viewMode !== 'new') return;
     if (e.type !== 'click' || !e.altKey) return;
     const ctl = e.target.closest ? e.target.closest('summary') : null;
     if (!ctl || ctl.closest('[data-ec-ui]')) return;
@@ -553,6 +568,7 @@
   // prevent that so label text stays editable. Buttons are editable too;
   // ⌘/Ctrl-click one to actually activate it.
   const onFormTextClick = (e) => {
+    if (viewMode !== 'new') return;
     if (!e.isTrusted) return; // our own ctl.click() below must not recurse
     const ctl = e.target.closest ? e.target.closest('label, button') : null;
     if (!ctl) return;
@@ -580,18 +596,28 @@
   let panelEl = null;
   let chipEl = null;
   let listEl = null;
+  let viewBarEl = null;
   let panelOpen = false;
+
+  // Current after-state of a tracked element, view-safe: while a view is
+  // shown, the DOM holds view content, so read the stored snapshot instead.
+  const afterOf = (el, rec) => {
+    if (viewMode === 'new') {
+      return el.isConnected ? htmlOf(el) : rec.after != null ? rec.after : '(element removed)';
+    }
+    return rec.after != null ? rec.after : rec.before;
+  };
 
   const changedEntries = () => {
     const out = [];
     for (const [el, rec] of tracked) {
-      const after = el.isConnected ? htmlOf(el) : rec.after != null ? rec.after : '(element removed)';
-      if (after !== rec.before) out.push([el, rec]);
+      if (afterOf(el, rec) !== rec.before) out.push([el, rec]);
     }
     return out;
   };
 
   const undoEdit = (el) => {
+    setView('new'); // restore the live state before touching the DOM
     const rec = tracked.get(el);
     if (!rec) return;
     // ponytail: outerHTML swap restores markup but drops JS listeners on that element
@@ -620,7 +646,25 @@
       panelOpen = !panelOpen;
       renderPanel();
     });
-    panelEl.append(listEl, chipEl);
+    viewBarEl = document.createElement('div');
+    viewBarEl.style.cssText =
+      'display:none;background:#fff;border:1px solid #CBD5E1;border-radius:999px;overflow:hidden;' +
+      'box-shadow:0 4px 16px rgba(0,30,53,.2);';
+    for (const [mode, label] of [
+      ['original', 'Original'],
+      ['diff', 'Diff'],
+      ['new', 'New'],
+    ]) {
+      const b = document.createElement('button');
+      b.dataset.mode = mode;
+      b.textContent = label;
+      b.style.cssText =
+        'border:none;background:transparent;padding:6px 12px;cursor:pointer;' +
+        'font:600 12px/1 -apple-system,"Segoe UI",sans-serif;color:#001E35;';
+      b.addEventListener('click', () => setView(mode));
+      viewBarEl.appendChild(b);
+    }
+    panelEl.append(listEl, viewBarEl, chipEl);
     (document.body || document.documentElement).appendChild(panelEl);
   };
 
@@ -700,6 +744,79 @@
     }
   };
 
+  // ── View toggle: show the page as original / diff / new ─────────────
+  // The tracked elements stay in place; only their *content* is swapped, so
+  // tracking survives the round-trip. Original/diff views are read-only.
+  const parseFrag = (html) => {
+    const t = document.createElement('template');
+    t.innerHTML = html;
+    return t.content.firstElementChild;
+  };
+
+  // Put the content/state of `html` into the live element without replacing it.
+  const applyContent = (el, html) => {
+    const src = parseFrag(html);
+    if (!src) return;
+    if (isFormControl(el)) {
+      if (el.tagName === 'TEXTAREA') el.value = src.getAttribute('placeholder') ? '' : src.textContent;
+      else if (el.tagName === 'SELECT') {
+        const i = [...src.querySelectorAll('option')].findIndex((o) => o.hasAttribute('selected'));
+        if (i >= 0) el.selectedIndex = i;
+      } else if (el.type === 'checkbox' || el.type === 'radio') {
+        el.checked = src.hasAttribute('checked');
+      } else {
+        el.value = src.getAttribute('value') || '';
+        if (src.hasAttribute('placeholder')) el.placeholder = src.getAttribute('placeholder');
+      }
+      return;
+    }
+    el.replaceChildren(...src.childNodes);
+  };
+
+  // ponytail: the in-page diff flattens nested markup to a word-diff of the
+  // text; attribute-only changes just show the new state
+  const applyDiffContent = (el, rec) => {
+    const bt = textOf(rec.before);
+    const at = textOf(rec.after);
+    if (isFormControl(el)) {
+      const show = bt === at ? at : `${bt} → ${at}`;
+      if (el.tagName === 'SELECT' || el.type === 'checkbox' || el.type === 'radio') {
+        applyContent(el, rec.after);
+      } else if (phMode.has(el) || parseFrag(rec.after)?.hasAttribute('placeholder')) {
+        el.value = '';
+        el.placeholder = show;
+      } else {
+        el.value = show;
+      }
+      return;
+    }
+    if (bt === at) return applyContent(el, rec.after);
+    el.replaceChildren();
+    for (const [type, text] of diffWords(bt, at)) {
+      const s = document.createElement('span');
+      s.textContent = text + ' ';
+      if (type === 'del') s.style.cssText = DIFF_DEL;
+      else if (type === 'ins') s.style.cssText = DIFF_INS;
+      el.appendChild(s);
+    }
+  };
+
+  const setView = (mode) => {
+    if (!active || mode === viewMode) return;
+    if (viewMode === 'new') updateAfters(); // capture the live state first
+    hideLinkUi();
+    viewMode = mode;
+    // Views behave like a normal page: no caret, no editing, links work.
+    document.designMode = mode === 'new' ? 'on' : 'off';
+    for (const [el, rec] of tracked) {
+      if (!el.isConnected || rec.after == null || rec.after === rec.before) continue;
+      if (mode === 'original') applyContent(el, rec.before);
+      else if (mode === 'new') applyContent(el, rec.after);
+      else applyDiffContent(el, rec);
+    }
+    renderPanel();
+  };
+
   // Text diff when the text changed; otherwise the changed attribute.
   const renderChange = (node, beforeHtml, afterHtml) => {
     const bt = textOf(beforeHtml);
@@ -739,6 +856,12 @@
     const past = sections.filter((s) => normUrl(s.url) !== normUrl(currentUrl) && s.edits.length > 0);
     const total = entries.length + carried.length + past.reduce((n, s) => n + s.edits.length, 0);
     chipEl.textContent = `✏️ ${total} edit${total === 1 ? '' : 's'}`;
+    viewBarEl.style.display = entries.length ? 'flex' : 'none';
+    for (const b of viewBarEl.children) {
+      const on = b.dataset.mode === viewMode;
+      b.style.background = on ? '#001E35' : 'transparent';
+      b.style.color = on ? '#fff' : '#001E35';
+    }
     listEl.style.display = panelOpen && total ? 'block' : 'none';
     listEl.textContent = '';
     if (!panelOpen) return;
@@ -812,15 +935,14 @@
         });
       }
       for (const [el, rec] of entries) {
-        const after = el.isConnected ? htmlOf(el) : rec.after != null ? rec.after : '(element removed)';
-        addRow(rec.before, after, rec.selector, () => undoEdit(el), null);
+        addRow(rec.before, afterOf(el, rec), rec.selector, () => undoEdit(el), null);
       }
     }
   };
 
   const removePanel = () => {
     panelEl?.remove();
-    panelEl = chipEl = listEl = null;
+    panelEl = chipEl = listEl = viewBarEl = null;
     panelOpen = false;
   };
 
@@ -871,6 +993,7 @@
       // Don't checkUrlChange() here: its fire-and-forget sync could race the
       // background's section read. `tracked` always belongs to `currentUrl`,
       // so responding with it directly is both safe and correct.
+      setView('new'); // leave the page in its edited state, not a view
       updateAfters();
       sendResponse({ url: currentUrl, edits: snapshot() });
       disable();

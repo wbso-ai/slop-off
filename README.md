@@ -58,6 +58,10 @@ replace it with. No ambiguity, no back-and-forth.
 - ↩️ **Undo per edit** — a floating chip shows the live edit count; open it
   to undo edits on this page (↩︎) or drop edits from other pages (✕) without
   losing the rest — ending edit mode copies the report right away
+- 👁 **Original / Diff / New views** — toggle the page between its original
+  state, an in-page word diff (red strikethrough / green), and your edited
+  version; Original and Diff behave like a normal read-only page, New
+  returns to editing
 - 🗂 **Report history** — the last 20 reports are kept on the settings page;
   view, copy, delete, or combine several into one multi-page report
 - 🔔 **On-page toast** — a confirmation appears when the report is copied
