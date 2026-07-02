@@ -1,17 +1,17 @@
 ---
 name: apply-edits
 description: >
-  Verwerk Edit & Capture browser-rapporten via de edit-capture MCP server en
+  Verwerk Slop Off browser-rapporten via de slop-off MCP server en
   pas de edits toe op de broncode van het huidige project. Blijft standaard
   in een lus rapporten verwerken tot de gebruiker stopt. Gebruik bij
   "/apply-edits", "pas mijn edit-rapport toe", "wacht op mijn browser-edits",
   of nadat de gebruiker in de browser edits heeft gemaakt met de
-  Edit & Capture extensie.
+  Slop Off extensie.
 ---
 
 # Apply browser edits
 
-Verwerk rapporten van de `edit-capture` MCP server en pas ze toe op de bron.
+Verwerk rapporten van de `slop-off` MCP server en pas ze toe op de bron.
 
 ## Modus
 

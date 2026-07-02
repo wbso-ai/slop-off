@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// Edit & Capture MCP server: receives reports from the extension over HTTP
+// Slop Off MCP server: receives reports from the extension over HTTP
 // and serves them to a coding agent over MCP (stdio). No dependencies.
 //
-// Register with:  claude mcp add edit-capture -- node /path/to/mcp/server.js
+// Register with:  claude mcp add slop-off -- node /path/to/mcp/server.js
 // Extension:      set the webhook URL to http://localhost:8931 in the options.
 
 const http = require('http');
@@ -10,8 +10,8 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const PORT = Number(process.env.EDIT_CAPTURE_PORT || 8931);
-const DIR = path.join(os.homedir(), '.edit-capture');
+const PORT = Number(process.env.SLOP_OFF_PORT || 8931);
+const DIR = path.join(os.homedir(), '.slop-off');
 const QUEUE_FILE = path.join(DIR, 'queue.json');
 
 fs.mkdirSync(DIR, { recursive: true });
@@ -63,7 +63,7 @@ http
     if (req.method === 'OPTIONS') return res.end();
     if (req.method !== 'POST') {
       res.statusCode = 200;
-      return res.end(`edit-capture bridge: ${queue.length} report(s) queued\n`);
+      return res.end(`slop-off bridge: ${queue.length} report(s) queued\n`);
     }
     let body = '';
     req.on('data', (c) => (body += c));
@@ -79,7 +79,7 @@ http
   })
   .on('error', (e) => {
     // Another instance owns the port; we serve MCP from the shared queue file.
-    process.stderr.write(`edit-capture: HTTP listener disabled (${e.code})\n`);
+    process.stderr.write(`slop-off: HTTP listener disabled (${e.code})\n`);
   })
   .listen(PORT);
 
@@ -88,7 +88,7 @@ const TOOLS = [
   {
     name: 'wait_for_report',
     description:
-      'Return the next unconsumed edit report from the Edit & Capture browser extension. ' +
+      'Return the next unconsumed edit report from the Slop Off browser extension. ' +
       'Returns immediately if one is queued; otherwise waits until a report arrives or the ' +
       'timeout passes. Call repeatedly to drain multiple reports in order.',
     inputSchema: {
@@ -207,7 +207,7 @@ async function handle(req) {
       reply({
         protocolVersion: params?.protocolVersion || '2024-11-05',
         capabilities: { tools: {} },
-        serverInfo: { name: 'edit-capture', version: '1.0.0' },
+        serverInfo: { name: 'slop-off', version: '1.0.0' },
       });
     } else if (method === 'tools/list') {
       reply({ tools: TOOLS });

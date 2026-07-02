@@ -1,7 +1,7 @@
 <div align="center">
-  <img src="icons/icon128.png" width="96" alt="Edit & Capture logo">
+  <img src="icons/icon128.png" width="96" alt="Slop Off logo">
 
-  # Edit & Capture
+  # Slop Off
 
   **Edit any web page in place, then hand the diff straight to your AI assistant.**
 
@@ -23,7 +23,7 @@ Tweaking copy on a website through an AI coding assistant usually goes like
 this: describe *where* the text is, describe *what* it should become, wait,
 review, repeat. It's slow and error-prone.
 
-Edit & Capture flips that around: **you make the edit directly on the page**,
+Slop Off flips that around: **you make the edit directly on the page**,
 and the extension produces an exact, machine-applicable changelog. Paste it
 into your assistant and it knows precisely which HTML to find and what to
 replace it with. No ambiguity, no back-and-forth.
@@ -138,12 +138,12 @@ extension over HTTP and serves them to the agent as MCP tools.
 From the root of this repo:
 
 ```sh
-claude mcp add --scope user edit-capture -- node "$(pwd)/mcp/server.js"
+claude mcp add --scope user slop-off -- node "$(pwd)/mcp/server.js"
 ```
 
 `--scope user` makes the tools available in every project. Verify with
-`claude mcp list`; remove again with `claude mcp remove edit-capture`.
-The bridge listens on port `8931` (override with the `EDIT_CAPTURE_PORT`
+`claude mcp list`; remove again with `claude mcp remove slop-off`.
+The bridge listens on port `8931` (override with the `SLOP_OFF_PORT`
 env var — then also adjust the webhook URL below).
 
 #### 2. Point the extension at it
@@ -177,7 +177,7 @@ In a Claude Code session in the project whose site you're editing:
 - `/apply-edits latest` — apply the most recent report, without waiting
 - `/apply-edits list` — show the queue
 
-Reports queue up in order (`~/.edit-capture/queue.json`, last 50), so
+Reports queue up in order (`~/.slop-off/queue.json`, last 50), so
 several edit sessions in a row are all delivered — `wait_for_report`
 returns immediately while there's a backlog. Without the skill the raw MCP
 tools (`wait_for_report`, `get_latest_report`, `list_reports`) work too:

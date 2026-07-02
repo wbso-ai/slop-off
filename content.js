@@ -3,11 +3,11 @@
 // here. Collected edits are synced to the background so they survive page
 // changes.
 (() => {
-  if (window.__editCaptureInjected) {
-    window.__editCaptureEnable();
+  if (window.__slopOffInjected) {
+    window.__slopOffEnable();
     return;
   }
-  window.__editCaptureInjected = true;
+  window.__slopOffInjected = true;
 
   // Sections are keyed by URL with the hash ignored: one section per page.
   const normUrl = (u) => (u || '').split('#')[0];
@@ -37,7 +37,7 @@
     if (clone.removeAttribute) clone.removeAttribute('contenteditable');
     clone.querySelectorAll?.('[contenteditable]').forEach((n) => n.removeAttribute('contenteditable'));
     // The inline attribute-editor chip lives inside the page DOM; never capture it.
-    clone.querySelectorAll?.('edit-capture-ui').forEach((n) => n.remove());
+    clone.querySelectorAll?.('slop-off-ui').forEach((n) => n.remove());
     if (isFormControl(el)) {
       if (el.tagName === 'TEXTAREA') {
         if (phMode.has(el) && el.value) {
@@ -391,9 +391,9 @@
     linkKind = kind;
     // Lives INSIDE the anchor (or right after the input), so hovering the
     // chip never counts as leaving the element — but position:fixed, so it
-    // takes no layout space. htmlOf() strips <edit-capture-ui> from every
+    // takes no layout space. htmlOf() strips <slop-off-ui> from every
     // capture.
-    linkUi = document.createElement('edit-capture-ui');
+    linkUi = document.createElement('slop-off-ui');
     linkUi.setAttribute('data-ec-ui', '');
     linkUi.contentEditable = 'false';
     linkUi.style.cssText =
@@ -864,6 +864,6 @@
     }
   });
 
-  window.__editCaptureEnable = enable;
+  window.__slopOffEnable = enable;
   enable();
 })();

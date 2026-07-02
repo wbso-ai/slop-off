@@ -25,15 +25,15 @@ jobs:
 
       - name: Build extension zip
         run: |
-          zip -r "edit-capture-extension-${GITHUB_REF_NAME}.zip" \
+          zip -r "slop-off-extension-${GITHUB_REF_NAME}.zip" \
             manifest.json background.js content.js \
             options.html options.js icons LICENSE
 
       - name: Create GitHub release
         run: |
           gh release create "$GITHUB_REF_NAME" \
-            "edit-capture-extension-${GITHUB_REF_NAME}.zip" \
-            --title "Edit & Capture $GITHUB_REF_NAME" \
+            "slop-off-extension-${GITHUB_REF_NAME}.zip" \
+            --title "Slop Off $GITHUB_REF_NAME" \
             --generate-notes
         env:
           GH_TOKEN: ${{ github.token }}
