@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Slop Off",
-  "version": "1.13.1",
+  "version": "1.14.0",
   "description": "Click to make any page editable; click again to send a before/after report of your edits (with a configurable prompt) straight to your coding agent. Survives navigation and reloads.",
   "author": "jankees@wbso.ai, paul@wbso.ai",
   "permissions": ["activeTab", "scripting", "storage"],

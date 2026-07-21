@@ -86,6 +86,7 @@
     ]],
     ['Notes', [
       [[CTRL, 'Click'], 'attach a note (hold ' + CTRL + ' to aim)'],
+      [[CTRL, '⇧', 'Click'], 'add / drop an element on the open note'],
       [['Tab'], 'next annotated element · ⇧ for previous'],
       [['Enter'], 'save the note · ⇧ Enter for a new line'],
     ]],

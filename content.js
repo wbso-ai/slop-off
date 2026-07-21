@@ -289,12 +289,12 @@
             const attached = new Set([...notes.values()].map((n) => n.selector));
             carriedNotes = (section.notes || []).filter((n) => {
               if (attached.has(n.selector)) return false;
-              let el = null;
+              let els = [];
               try {
-                el = document.querySelector(n.selector);
+                els = [...document.querySelectorAll(n.selector)];
               } catch (err) {}
-              if (!el) return true;
-              notes.set(el, { selector: n.selector, prompt: n.prompt, html: n.html });
+              if (!els.length) return true;
+              notes.set(els[0], { els, selector: n.selector, prompt: n.prompt, html: n.html });
               return false;
             });
             syncMarkers();
@@ -632,11 +632,14 @@
   // Saved notes show as a small 💬 marker on the element's corner; hovering
   // it highlights the element and shows the prompt, clicking it re-opens the
   // editor. Notes travel with the report as selector + snippet + instruction.
-  let notes = new Map(); // element -> { selector, prompt, html }
+  // A note can cover several elements (⌃⇧-click adds to the open one); the map
+  // is keyed on the first element and `selector` is then a CSS selector list.
+  let notes = new Map(); // first element -> { els, selector, prompt, html }
   let carriedNotes = []; // notes from an earlier visit whose element isn't found (yet)
   let noteMarkers = new Map(); // element -> marker node
   let noteEditor = null;
-  let noteTarget = null;
+  let noteTarget = null; // key element of the note being edited
+  let noteEls = []; // every element that note covers
   let noteHl = null;
   let noteBubble = null;
 
@@ -652,17 +655,26 @@
     return out;
   };
 
-  const highlightNoteEl = (el) => {
+  // The note's first element is gold; the ones added with ⌃⇧ are teal, so it
+  // stays visible which element the note hangs off.
+  const GOLD = '#FBB734';
+  const TEAL = '#2DD4BF';
+
+  const highlightNoteEl = (els) => {
     unhighlightNoteEl();
-    if (!el?.isConnected) return;
-    noteHl = { el, outline: el.style.outline, offset: el.style.outlineOffset };
-    el.style.outline = '3px solid #FBB734';
-    el.style.outlineOffset = '2px';
+    noteHl = [];
+    [els].flat().forEach((el, i) => {
+      if (!el?.isConnected) return;
+      noteHl.push({ el, outline: el.style.outline, offset: el.style.outlineOffset });
+      el.style.outline = `3px solid ${i ? TEAL : GOLD}`;
+      el.style.outlineOffset = '2px';
+    });
   };
   const unhighlightNoteEl = () => {
-    if (!noteHl) return;
-    noteHl.el.style.outline = noteHl.outline;
-    noteHl.el.style.outlineOffset = noteHl.offset;
+    for (const h of noteHl || []) {
+      h.el.style.outline = h.outline;
+      h.el.style.outlineOffset = h.offset;
+    }
     noteHl = null;
   };
 
@@ -699,18 +711,22 @@
     marker.style.top = `${Math.max(2, r.top - 10)}px`;
   };
 
-  const createMarker = (el) => {
+  // One marker per element the note covers — teal on the added ones, so a
+  // multi-element note is visible at every place it hangs off.
+  const createMarker = (el, key) => {
     const m = document.createElement('slop-off-ui');
     m.setAttribute('data-ec-ui', '');
     m.contentEditable = 'false';
+    m._noteKey = key; // which note this marker belongs to (see syncMarkers)
     m.textContent = '💬';
     m.style.cssText =
-      'position:fixed;z-index:2147483647;width:22px;height:22px;border-radius:50%;background:#FBB734;' +
+      'position:fixed;z-index:2147483647;width:22px;height:22px;border-radius:50%;' +
+      `background:${el === key ? GOLD : TEAL};` +
       'display:flex;align-items:center;justify-content:center;font-size:12px;cursor:pointer;' +
       'box-shadow:0 2px 8px rgba(0,30,53,.35);user-select:none;';
     m.addEventListener('mouseenter', () => {
-      highlightNoteEl(el);
-      const n = notes.get(el);
+      const n = notes.get(key);
+      highlightNoteEl(n?.els || el);
       if (n) showNoteBubble(m, n.prompt);
     });
     m.addEventListener('mouseleave', () => {
@@ -733,19 +749,21 @@
   };
 
   const syncMarkers = () => {
+    const owner = new Map(); // every annotated element -> its note's key element
+    for (const [key, n] of notes) for (const el of n.els) owner.set(el, key);
     for (const [el, marker] of noteMarkers) {
-      if (!notes.has(el)) {
-        marker.remove();
-        noteMarkers.delete(el);
-      }
+      if (owner.get(el) === marker._noteKey) continue;
+      marker.remove();
+      noteMarkers.delete(el);
     }
-    for (const [el] of notes) {
-      if (!noteMarkers.has(el)) noteMarkers.set(el, createMarker(el));
+    for (const [el, key] of owner) {
+      if (!noteMarkers.has(el)) noteMarkers.set(el, createMarker(el, key));
       positionMarker(el, noteMarkers.get(el));
     }
   };
 
   const onOutsideNote = (e) => {
+    if (e.ctrlKey && e.shiftKey) return; // ⌃⇧-click extends the note instead
     if (noteEditor && !noteEditor.contains(e.target)) closeNoteEditor();
   };
 
@@ -754,6 +772,7 @@
     noteEditor?.remove();
     noteEditor = null;
     noteTarget = null;
+    noteEls = [];
     unhighlightNoteEl();
     clearTimeout(syncTimer);
     sync();
@@ -764,9 +783,20 @@
     const el = noteTarget;
     if (!el) return;
     const v = value.trim();
+    const prev = notes.get(el);
     if (!v) notes.delete(el);
-    else notes.set(el, { selector: cssPath(el), prompt: v, html: notes.get(el)?.html || snippetOf(el) });
+    else notes.set(el, {
+      els: noteEls,
+      selector: noteEls.map(cssPath).join(', '),
+      prompt: v,
+      // Snapshot stays put unless the selection itself changed.
+      html: prev?.els.length === noteEls.length ? prev.html : noteEls.map(snippetOf).join('\n'),
+    });
     syncMarkers();
+    queueSync();
+  };
+
+  const queueSync = () => {
     clearTimeout(syncTimer);
     syncTimer = setTimeout(sync, 300);
   };
@@ -778,11 +808,26 @@
     closeNoteEditor();
   };
 
+  // ⌃⇧-click adds another element to the note that's open right now. Toggles:
+  // ⌃⇧-clicking an element that's already in the note drops it again.
+  const addToNote = (el) => {
+    const ta = noteEditor?.querySelector('textarea');
+    if (!ta || !noteTarget) return;
+    if (el === noteEls[0]) return; // the note hangs off this one
+    noteEls = noteEls.includes(el) ? noteEls.filter((x) => x !== el) : [...noteEls, el];
+    highlightNoteEl(noteEls);
+    liveSaveNote(ta.value);
+    ta.focus(); // keep typing where you left off
+  };
+
   const openNoteEditor = (el) => {
     closeNoteEditor();
     hideNoteBubble();
-    noteTarget = el;
-    highlightNoteEl(el);
+    // Clicking any member of a group re-opens that group.
+    const key = notes.has(el) ? el : [...notes].find(([, n]) => n.els.includes(el))?.[0] || el;
+    noteTarget = key;
+    noteEls = notes.get(key)?.els || [key];
+    highlightNoteEl(noteEls);
     noteEditor = document.createElement('slop-off-ui');
     noteEditor.setAttribute('data-ec-ui', '');
     noteEditor.contentEditable = 'false';
@@ -804,7 +849,7 @@
     chevron.style.cssText =
       'color:#FBB734;font:700 13px/1.5 ui-monospace,Menlo,monospace;flex:none;user-select:none;';
     const ta = document.createElement('textarea');
-    ta.value = notes.get(el)?.prompt || '';
+    ta.value = notes.get(key)?.prompt || '';
     ta.placeholder = 'instruction for this element…';
     ta.rows = 3;
     ta.style.cssText =
@@ -865,7 +910,10 @@
     e.preventDefault();
     e.stopPropagation();
     clearAnnotateHover();
-    openNoteEditor(e.target);
+    // ⇧ only ever extends an open note — it never starts one.
+    if (!e.shiftKey) openNoteEditor(e.target);
+    else if (noteEditor) addToNote(e.target);
+    else miniToast('Open a note with ⌃-click first, then ⌃⇧-click to add elements');
   };
 
   // While ⌃ is held, preview which element a click would pick.
@@ -879,24 +927,29 @@
     annotateHover = null;
   };
 
-  const previewAnnotate = (el, ctrlDown) => {
+  const previewAnnotate = (el, ctrlDown, adding) => {
+    // ⇧ aims at "add to the open note", so there has to be one — and the
+    // element already in the note gets no preview, it's highlighted already.
+    if (adding && (!noteEditor || noteEls.includes(el))) return clearAnnotateHover();
     if (!ctrlDown || viewMode !== 'new' || !annotatable(el)) return clearAnnotateHover();
-    if (annotateHover?.el === el) return;
+    if (annotateHover?.el === el && annotateHover.adding === adding) return;
     clearAnnotateHover();
-    annotateHover = { el, outline: el.style.outline, offset: el.style.outlineOffset };
-    el.style.outline = '2px dashed #FBB734';
+    annotateHover = { el, adding, outline: el.style.outline, offset: el.style.outlineOffset };
+    el.style.outline = `2px dashed ${adding ? TEAL : GOLD}`;
     el.style.outlineOffset = '2px';
   };
 
+  const aiming = (e) => e.ctrlKey && !e.metaKey && !e.altKey;
+
   const onAnnotateMove = (e) => {
     lastMouseTarget = e.target;
-    previewAnnotate(e.target, e.ctrlKey && !e.metaKey && !e.altKey);
+    previewAnnotate(e.target, aiming(e), e.shiftKey);
   };
 
   const onAnnotateKey = (e) => {
-    if (e.key !== 'Control') return;
-    if (e.type === 'keyup') clearAnnotateHover();
-    else previewAnnotate(lastMouseTarget, true);
+    if (e.key !== 'Control' && e.key !== 'Shift') return;
+    if (e.type === 'keyup' && e.key === 'Control') clearAnnotateHover();
+    else previewAnnotate(lastMouseTarget, aiming(e), e.shiftKey);
   };
 
   // Tab cycles through the annotated elements (Shift+Tab backwards) and
