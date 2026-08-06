@@ -118,6 +118,13 @@
     }
   };
 
+  // ponytail: always sent, no config — one line of context (viewport, dpr,
+  // browser) so the agent can tell mobile from desktop when it matters.
+  const envInfo = () =>
+    `${innerWidth}×${innerHeight}` +
+    (devicePixelRatio !== 1 ? ` @${devicePixelRatio}x` : '') +
+    ` — ${navigator.userAgent}`;
+
   const snapshot = () => {
     const edits = carried.slice();
     for (const [el, rec] of tracked) {
@@ -147,6 +154,7 @@
         url: currentUrl,
         edits: snapshot(),
         notes: noteList(),
+        env: envInfo(),
       });
     } catch (e) {
       // Extension context gone (e.g. reloaded); nothing we can do.
@@ -174,7 +182,7 @@
     const sentNoteEls = new Set(notes.keys());
     try {
       chrome.runtime.sendMessage(
-        { type: 'flushInstant', url: currentUrl, edits, notes: noteList() },
+        { type: 'flushInstant', url: currentUrl, edits, notes: noteList(), env: envInfo() },
         (ok) => {
           void chrome.runtime.lastError;
           if (!ok || !active) {
@@ -2016,7 +2024,7 @@
       // so responding with it directly is both safe and correct.
       setView('new'); // leave the page in its edited state, not a view
       updateAfters();
-      sendResponse({ url: currentUrl, edits: snapshot(), notes: noteList() });
+      sendResponse({ url: currentUrl, edits: snapshot(), notes: noteList(), env: envInfo() });
       disable();
     }
   });

@@ -37,10 +37,10 @@ async function getSections(tabId) {
 const normUrl = (u) => (u || '').split('#')[0];
 
 // Insert or replace the edits + notes for one page.
-function upsertSection(sections, { url, edits, notes }) {
+function upsertSection(sections, { url, edits, notes, env }) {
   const i = sections.findIndex((s) => normUrl(s.url) === normUrl(url));
-  if (i >= 0) sections[i] = { url: sections[i].url, edits, notes: notes || [] };
-  else sections.push({ url, edits, notes: notes || [] });
+  if (i >= 0) sections[i] = { url: sections[i].url, edits, notes: notes || [], env };
+  else sections.push({ url, edits, notes: notes || [], env });
 }
 
 const sectionSize = (s) => s.edits.length + (s.notes?.length || 0);
@@ -57,6 +57,7 @@ function buildReport(promptPrefix, sections, fallbackUrl) {
   }
   for (const section of withContent) {
     parts.push('---', '', `url: ${section.url}`);
+    if (section.env) parts.push(`viewed on: ${section.env}`);
     for (const { selector, before, after } of section.edits) {
       parts.push('');
       if (selector) parts.push(`selector: ${selector}`, '');
