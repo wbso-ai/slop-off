@@ -1,0 +1,10 @@
+{
+	"name": "slop-off",
+	"version": "1.11.0",
+	"description": "Apply Slop Off browser edit reports in Codex via the bundled MCP bridge.",
+	"homepage": "https://github.com/wbso-ai/slop-off#readme",
+	"repository": "https://github.com/wbso-ai/slop-off",
+	"license": "MIT",
+	"mcpServers": "./.mcp.json",
+	"skills": "./skills/"
+}

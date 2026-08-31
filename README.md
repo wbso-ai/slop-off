@@ -232,8 +232,9 @@ npx skills add wbso-ai/slop-off
 That fetches the skill straight from GitHub and installs it into
 `~/.claude/skills/` (pick **Claude Code** and the global scope when prompted;
 or non-interactively: `npx skills add wbso-ai/slop-off -g -a claude-code -y`).
-`skills` supports [70+ other agents](https://skills.sh) too — swap the
-`-a` flag for Cursor, Codex, etc.
+`skills` supports [70+ other agents](https://skills.sh) too. Swap the `-a`
+flag for Cursor and other supported agents. For Codex, use the plugin below so
+the skill and MCP bridge are installed together.
 
 #### 4. Use it
 
@@ -255,6 +256,26 @@ returns immediately while there's a backlog. Without the skill the raw MCP
 tools (`wait_for_report`, `get_latest_report`, `list_reports`) work too:
 *"wait for my edit report and apply it"*.
 
+### Codex plugin
+
+The Codex plugin registers the existing MCP bridge and exposes a `$slop-off`
+skill:
+
+```sh
+codex plugin marketplace add wbso-ai/slop-off
+codex plugin add slop-off@slop-off
+```
+
+For local development:
+
+```sh
+codex plugin marketplace add .
+codex plugin add slop-off@slop-off
+```
+
+Restart Codex after installing so the new MCP tools and skill are loaded into
+the session.
+
 ## How it works
 
 | File | Role |
@@ -265,6 +286,7 @@ tools (`wait_for_report`, `get_latest_report`, `list_reports`) work too:
 | `options.html` / `options.js` | Settings page: thin shell around `panes.js` — stored in `chrome.storage.sync` / `.local` |
 | `mcp/server.js` | Optional MCP bridge: HTTP endpoint for the webhook (+ `GET /status` for pending reports and agent notifications, `POST /cancel` to drop one) + `wait_for_report` / `get_latest_report` / `list_reports` / `clear_reports` / `notify_browser` tools over stdio; hot-reloads itself on code changes |
 | `.claude/skills/slop-off/` | Claude Code skill: `/slop-off` processes queued reports in a loop |
+| `.agents/plugins/marketplace.json` + `.codex-plugin/` + `.mcp.json` + `skills/slop-off/` | Codex plugin: `$slop-off` processes queued reports via the same MCP bridge |
 
 Details worth knowing:
 

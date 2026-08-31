@@ -1,0 +1,11 @@
+{
+	"mcpServers": {
+		"slop-off": {
+			"command": "node",
+			"args": [
+				"./mcp/server.js"
+			],
+			"cwd": "."
+		}
+	}
+}
