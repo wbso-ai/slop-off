@@ -1,6 +1,6 @@
 {
   "name": "slop-off",
-  "version": "1.15.0",
+  "version": "1.16.0",
   "description": "MCP bridge for the Slop Off browser extension: receives before/after edit reports over HTTP and serves them to your coding agent as MCP tools.",
   "bin": {
     "slop-off": "mcp/server.js"
@@ -8,6 +8,10 @@
   "type": "commonjs",
   "files": [
     "mcp/server.js",
+    "shim.js",
+    "background.js",
+    "panes.js",
+    "content.js",
     "README.md",
     "LICENSE"
   ],

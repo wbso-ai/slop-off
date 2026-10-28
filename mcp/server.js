@@ -141,6 +141,32 @@ const server = http.createServer((req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Headers', 'content-type');
     if (req.method === 'OPTIONS') return res.end();
+    if (req.method !== 'POST' && (req.url || '').startsWith('/inject.js')) {
+      // The extension as one page script, for browsers without extension
+      // support: the agent injects <script src=…/inject.js> (see shim.js).
+      // Read on every request, so edits to the extension files apply at once.
+      const src = (f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
+      const base = `http://${req.headers.host || `localhost:${PORT}`}`;
+      res.setHeader('content-type', 'text/javascript; charset=utf-8');
+      res.setHeader('cache-control', 'no-store');
+      return res.end(
+        [
+          '(() => {',
+          'if (window.__slopOffShim) return;',
+          'window.__slopOffShim = true;',
+          src('shim.js'),
+          'const background = (chrome) => {',
+          src('background.js'),
+          '};',
+          'const page = (chrome) => {',
+          src('panes.js'),
+          src('content.js'),
+          '};',
+          `boot(background, page, ${JSON.stringify(base)});`,
+          '})();',
+        ].join('\n')
+      );
+    }
     if (req.method !== 'POST') {
       loadQueue(); // another instance may have consumed reports
       if ((req.url || '').startsWith('/status')) {

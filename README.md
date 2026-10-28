@@ -248,6 +248,29 @@ In a Claude Code session in the project whose site you're editing:
 - `/slop-off latest` — apply the most recent report, without waiting
 - `/slop-off list` — show the queue
 - `/slop-off clear` — drop all pending reports from the queue
+- `/slop-off pane [url]` — the loop, for editing in the agent's own
+  browser pane (see below)
+
+#### Browsers without extensions (agent browser panes)
+
+Some browsers can't load extensions, such as the built-in browser pane of
+the Claude desktop app. For those, the bridge serves the whole extension
+as one page script at `http://localhost:8931/inject.js`: `shim.js` emulates
+the `chrome.*` APIs in the page and runs `background.js`, `panes.js` and
+`content.js` unchanged. Nothing in your app changes; the agent injects it:
+
+```js
+const s = document.createElement('script');
+s.src = 'http://localhost:8931/inject.js';
+document.head.appendChild(s);
+```
+
+Then `⌘⇧E` toggles edit mode as usual (or call `window.__slopOffToggle()`)
+and `⌘↩` sends pending edits. A full reload drops the script, but edit
+mode and your edits survive in `sessionStorage`; injecting again resumes
+them. `/slop-off pane` handles all of this: it injects, re-injects after
+reloads, and reloads the pane itself after applying a report. The options
+page doesn't exist there; use the in-page ⚙ overlay instead.
 
 Reports queue up in order (`~/.slop-off/queue.json`, last 50), so
 several edit sessions in a row are all delivered — `wait_for_report`
@@ -264,6 +287,7 @@ tools (`wait_for_report`, `get_latest_report`, `list_reports`) work too:
 | `panes.js` | Shared UI panes (Shortcuts / Notifications / History / Settings): one implementation for the in-page ⚙ overlay and the options page |
 | `options.html` / `options.js` | Settings page: thin shell around `panes.js` — stored in `chrome.storage.sync` / `.local` |
 | `mcp/server.js` | Optional MCP bridge: HTTP endpoint for the webhook (+ `GET /status` for pending reports and agent notifications, `POST /cancel` to drop one) + `wait_for_report` / `get_latest_report` / `list_reports` / `clear_reports` / `notify_browser` tools over stdio; hot-reloads itself on code changes |
+| `shim.js` | In-page stand-in for the `chrome.*` APIs; the bridge wraps it around the other scripts as `GET /inject.js` for browsers without extension support |
 | `.claude/skills/slop-off/` | Claude Code skill: `/slop-off` processes queued reports in a loop |
 
 Details worth knowing:

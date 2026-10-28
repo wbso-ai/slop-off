@@ -34,6 +34,31 @@ and the work.
 - Argument `list`: call `list_reports`, show the queue, ask which one.
 - Argument `clear`: call `clear_reports` and report in a single line how
   many reports were cleared. Process nothing, then stop.
+- Argument `pane [url]`: the same loop, but the user edits in YOUR
+  built-in browser pane, where the extension can't be installed. See
+  "Pane mode".
+
+## Pane mode
+
+The bridge serves the whole extension as one page script at
+`http://localhost:8931/inject.js` (chrome.* is emulated in-page by
+`shim.js`). Inject it with the browser pane's JavaScript tool:
+
+```js
+if (!window.__slopOffShim) await new Promise((ok, ko) => { const s = document.createElement('script'); s.src = 'http://localhost:8931/inject.js'; s.onload = ok; s.onerror = ko; document.head.appendChild(s); });
+```
+
+- Start: open the url (if given) in the pane once, inject, and turn
+  edit mode on with `window.__slopOffToggle()`. The user toggles it
+  with ⌘⇧E afterwards; ⌘↩ sends pending edits right away.
+- A full reload drops the script; edits and edit mode survive in
+  sessionStorage. So after each empty wait re-run the inject snippet (a
+  no-op when it's still there) — it resumes edit mode by itself. You
+  reload after applying anyway, so this only catches the user's own
+  refreshes; the normal 60s wait is fine.
+- After applying a report and calling `notify_browser`: reload the
+  pane yourself (`location.reload()`) and inject again, so the user
+  sees the change without refreshing. Don't navigate elsewhere.
 
 ## Apply edits
 
