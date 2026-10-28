@@ -20,8 +20,12 @@ and the work.
 
 - **Default (loop)**: say once "Waiting for browser edits — say 'stop'
   when you're done", then loop:
-  1. Call `wait_for_report` with timeout_seconds: 60. Empty? Call it
-     again, silently — empty waits are normal. After ~10 consecutive
+  1. Call `wait_for_report` with timeout_seconds: 60 and `origin` set
+     to this project's dev server (e.g. `http://localhost:3012`; find
+     the port your project's server listens on, or the pane's URL in
+     pane mode). Several sessions share one queue; with `origin` you get
+     only your app's reports and never take another session's. Empty?
+     Call it again, silently — empty waits are normal. After ~10 consecutive
      empty minutes, mention in one line that you're still waiting (don't
      ask, don't stop); repeat that at most once an hour.
   2. Report received → apply it per "Apply edits" below, then follow
@@ -49,7 +53,8 @@ if (!window.__slopOffShim) await new Promise((ok, ko) => { const s = document.cr
 ```
 
 - Start: open the url (if given) in the pane once, inject, and turn
-  edit mode on with `window.__slopOffToggle()`. The user toggles it
+  edit mode on with `window.__slopOffToggle()` only if
+  `document.designMode` isn't `"on"` yet (toggling it off sends a report). The user toggles it
   with ⌘⇧E afterwards; ⌘↩ sends pending edits right away.
 - A full reload drops the script; edits and edit mode survive in
   sessionStorage. So after each empty wait re-run the inject snippet (a

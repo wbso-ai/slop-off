@@ -79,7 +79,25 @@ const isWaiting = () => {
   }
 };
 
-let waiters = []; // pending wait_for_report resolvers
+// Several sessions share one queue, each loop serving its own app. A loop
+// that passes `origin` only takes that app's reports. One without it takes
+// anything, but only once a report is GRACE_MS old, so a session waiting
+// for that origin (here or in another instance) always gets it first.
+const GRACE_MS = 3000;
+const hostOf = (s) => {
+  try {
+    return new URL(String(s).includes('://') ? s : `http://${s}`).host;
+  } catch (e) {
+    return String(s);
+  }
+};
+const matcherFor = (origin) => {
+  if (!origin) return (r) => Date.now() - Date.parse(r.ts) >= GRACE_MS;
+  const host = hostOf(origin);
+  return (r) => (r.urls || []).some((u) => hostOf(u) === host);
+};
+
+let waiters = []; // pending wait_for_report resolvers: { match, filtered, take }
 // Aborted wait_for_report calls (user pressed stop/Esc): finish the wait
 // right away so the waiting flag clears in seconds, not after the timeout.
 const cancels = new Map(); // request id -> abort fn
@@ -129,10 +147,11 @@ const pushReport = (entry) => {
   };
   queue.push(report);
   saveQueue();
-  const w = waiters.shift();
+  // Unfiltered waiters pick it up from their poll once the grace has passed.
+  const w = waiters.find((x) => x.filtered && x.match(report));
   if (w) {
     consume(report);
-    w(report);
+    w.take(report);
   }
 };
 
@@ -263,6 +282,12 @@ const TOOLS = [
           type: 'number',
           description: 'Max seconds to wait (default 120).',
         },
+        origin: {
+          type: 'string',
+          description:
+            "Only take reports for this app, e.g. 'http://localhost:3012' (or just 'localhost:3012'). " +
+            'Pass it whenever several sessions use Slop Off, so each gets only its own reports.',
+        },
       },
     },
   },
@@ -307,9 +332,9 @@ const TOOLS = [
 // queued") without an extra tool call. The footer bakes the notify_browser
 // instruction into every report, so a summary comes back regardless of
 // which skill version (or none) the agent runs.
-const asText = (r) => {
+const asText = (r, match = () => true) => {
   if (!r) return 'No report available.';
-  const backlog = queue.filter((q) => !q.consumed).length;
+  const backlog = queue.filter((q) => !q.consumed && match(q)).length;
   return (
     `# Edit report ${r.id} (${r.ts}, ${r.count ?? '?'} edits, ` +
     `${backlog} more report${backlog === 1 ? '' : 's'} queued)\n\n${r.report}\n\n` +
@@ -370,10 +395,13 @@ async function callTool(name, args = {}, reqId) {
     return asText(r);
   }
   if (name === 'wait_for_report') {
-    const next = queue.find((r) => !r.consumed);
+    const filtered = Boolean(args.origin);
+    const match = matcherFor(args.origin);
+    const backlogMatch = filtered ? match : () => true;
+    const next = queue.find((r) => !r.consumed && match(r));
     if (next) {
       consume(next);
-      return asText(next);
+      return asText(next, backlogMatch);
     }
     const timeoutMs = Math.max(1, Number(args.timeout_seconds || 120)) * 1000;
     completeInFlight(); // agent is waiting again → nothing is being applied
@@ -391,7 +419,7 @@ async function callTool(name, args = {}, reqId) {
         try {
           fsw?.close();
         } catch (e) {}
-        waiters = waiters.filter((w) => w !== resolver);
+        waiters = waiters.filter((w) => w !== waiter);
         cancels.delete(reqId);
         setWaiting(0);
         resolve(text);
@@ -406,17 +434,17 @@ async function callTool(name, args = {}, reqId) {
         () => finish('No report arrived within the timeout. Call wait_for_report again to keep waiting.'),
         timeoutMs
       );
-      const resolver = (r) => finish(asText(r));
-      waiters.push(resolver);
+      const waiter = { match, filtered, take: (r) => finish(asText(r, backlogMatch)) };
+      waiters.push(waiter);
       // For instances without the HTTP port: react to queue-file writes
       // instantly, with a slow poll as belt-and-braces. Watch the directory,
       // not the file — the file may not exist yet and gets rewritten.
       const check = () => {
         loadQueue();
-        const r = queue.find((q) => !q.consumed);
+        const r = queue.find((q) => !q.consumed && match(q));
         if (r) {
           consume(r);
-          finish(asText(r));
+          finish(asText(r, backlogMatch));
         }
       };
       try {

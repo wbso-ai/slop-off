@@ -272,6 +272,12 @@ them. `/slop-off pane` handles all of this: it injects, re-injects after
 reloads, and reloads the pane itself after applying a report. The options
 page doesn't exist there; use the in-page ⚙ overlay instead.
 
+Several sessions can run `/slop-off` at once, each for its own app: the
+skill passes `origin` (its dev server, e.g. `http://localhost:3012`) to
+`wait_for_report`, and the bridge only hands it reports for that host. A
+wait without `origin` takes any report, but only after 3 seconds, so the
+session that asked for that host always gets it first.
+
 Reports queue up in order (`~/.slop-off/queue.json`, last 50), so
 several edit sessions in a row are all delivered — `wait_for_report`
 returns immediately while there's a backlog. Without the skill the raw MCP
