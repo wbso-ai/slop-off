@@ -195,11 +195,13 @@ extension over HTTP and serves them to the agent as MCP tools.
 
 #### 1. Register the MCP server
 
-No clone needed — the bridge is published to npm and runs via `npx`:
+No clone needed — `npx` runs the bridge straight from this GitHub repo:
 
 ```sh
-claude mcp add --scope user slop-off -- npx -y slop-off
+claude mcp add --scope user slop-off -- npx -y github:wbso-ai/slop-off
 ```
+
+(The package is not on the npm registry, so plain `npx -y slop-off` fails with a 404.)
 
 `--scope user` makes the tools available in every project. Verify with
 `claude mcp list`; remove again with `claude mcp remove slop-off`.
